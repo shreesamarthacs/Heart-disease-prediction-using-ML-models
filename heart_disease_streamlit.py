@@ -2,7 +2,7 @@ import streamlit as st
 import pickle
 import numpy as np
 import pandas as pd
-from sklearn.preprocessing import StandardScaler, LabelEncoder
+from sklearn.preprocessing import StandardScaler, OneHotEncoder
 
 # Load models
 with open('KNN_model.pkl', 'rb') as file:
@@ -12,47 +12,33 @@ with open('logistic_regression_model.pkl', 'rb') as file:
 with open('Naive_model.pkl', 'rb') as file:
     naive_model = pickle.load(file)
 
-# Initialize label encoders
-label_encoders = {
-    'Sex': LabelEncoder(),
-    'ChestPainType': LabelEncoder(),
-    'RestingECG': LabelEncoder(),
-    'ExerciseAngina': LabelEncoder(),
-    'ST_Slope': LabelEncoder()
-}
+# Load and fit OneHotEncoder
+dataset_raw = pd.read_csv('heart.xls')
+categorical_features = ['Sex', 'ChestPainType', 'RestingECG', 'ExerciseAngina', 'ST_Slope']
 
-# Example data to fit label encoders
-# Replace with actual fitting on training data
-label_encoders['Sex'].fit(['Male', 'Female'])
-label_encoders['ChestPainType'].fit(['ATA', 'NAP', 'ASY', 'TA'])
-label_encoders['RestingECG'].fit(['Normal', 'ST', 'LVH'])
-label_encoders['ExerciseAngina'].fit(['Y', 'N'])
-label_encoders['ST_Slope'].fit(['Up', 'Flat', 'Down'])
+# Initialize OneHotEncoder
+one_hot_encoder = OneHotEncoder(sparse=False, handle_unknown='ignore')
+one_hot_encoder.fit(dataset_raw[categorical_features])
 
-# Define the feature list in the same order as training
+# Define the feature list
 features = ['Age', 'Sex', 'ChestPainType', 'RestingBP', 'Cholesterol', 'FastingBS', 'RestingECG', 'MaxHR', 'ExerciseAngina', 'Oldpeak', 'ST_Slope']
 
-# Function to preprocess user input
 def preprocess_input(input_data):
-    # Encode categorical features
-    encoded_data = [
-        label_encoders['Sex'].transform([input_data[1]])[0],
-        label_encoders['ChestPainType'].transform([input_data[2]])[0],
-        label_encoders['RestingECG'].transform([input_data[3]])[0],
-        label_encoders['ExerciseAngina'].transform([input_data[4]])[0],
-        label_encoders['ST_Slope'].transform([input_data[5]])[0]
-    ]
+    # Convert input data to DataFrame
+    input_df = pd.DataFrame([input_data], columns=features)
     
-    # Numeric features
-    numeric_data = [input_data[0], input_data[3], input_data[4], input_data[6], input_data[7], input_data[8], input_data[9]]
-    combined_data = numeric_data + encoded_data
-
-    # Convert to numpy array
-    combined_data = np.array(combined_data).reshape(1, -1)
-
+    # One-hot encode categorical features
+    categorical_data = input_df[categorical_features]
+    numeric_data = input_df.drop(columns=categorical_features)
+    
+    one_hot_encoded = one_hot_encoder.transform(categorical_data)
+    
+    # Concatenate numeric data and one-hot encoded data
+    processed_data = np.concatenate([numeric_data, one_hot_encoded], axis=1)
+    
     # Standardize numeric features
     scaler = StandardScaler()
-    scaled_data = scaler.fit_transform(combined_data)
+    scaled_data = scaler.fit_transform(processed_data)
     return scaled_data
 
 st.title('Heart Disease Prediction')

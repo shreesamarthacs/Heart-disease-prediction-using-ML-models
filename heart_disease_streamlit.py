@@ -12,7 +12,7 @@ with open('logistic_regression_model.pkl', 'rb') as file:
 with open('Naive_model.pkl', 'rb') as file:
     naive_model = pickle.load(file)
 
-# Load and fit OneHotEncoder
+# Load dataset to fit OneHotEncoder
 dataset_raw = pd.read_csv('heart.xls')
 categorical_features = ['Sex', 'ChestPainType', 'RestingECG', 'ExerciseAngina', 'ST_Slope']
 
@@ -20,25 +20,47 @@ categorical_features = ['Sex', 'ChestPainType', 'RestingECG', 'ExerciseAngina', 
 one_hot_encoder = OneHotEncoder(sparse_output=False, handle_unknown='ignore')
 one_hot_encoder.fit(dataset_raw[categorical_features])
 
-# Define the feature list
-features = ['Age', 'Sex', 'ChestPainType', 'RestingBP', 'Cholesterol', 'FastingBS', 'RestingECG', 'MaxHR', 'ExerciseAngina', 'Oldpeak', 'ST_Slope']
+# Define the feature list in the desired order
+desired_feature_order = [
+    'Age', 'RestingBP', 'Cholesterol', 'FastingBS', 'MaxHR', 'Oldpeak',
+    'Sex_F', 'Sex_M', 'ChestPainType_ASY', 'ChestPainType_ATA', 'ChestPainType_NAP', 'ChestPainType_TA',
+    'RestingECG_LVH', 'RestingECG_Normal', 'RestingECG_ST',
+    'ExerciseAngina_N', 'ExerciseAngina_Y',
+    'ST_Slope_Down', 'ST_Slope_Flat', 'ST_Slope_Up'
+]
 
 def preprocess_input(input_data):
     # Convert input data to DataFrame
-    input_df = pd.DataFrame([input_data], columns=features)
+    input_df = pd.DataFrame([input_data], columns=[
+        'Age', 'Sex', 'ChestPainType', 'RestingBP', 'Cholesterol', 'FastingBS', 'RestingECG', 'MaxHR', 'ExerciseAngina', 'Oldpeak', 'ST_Slope'
+    ])
     
-    # One-hot encode categorical features
+    # Separate categorical and numeric data
     categorical_data = input_df[categorical_features]
     numeric_data = input_df.drop(columns=categorical_features)
     
+    # One-hot encode categorical features
     one_hot_encoded = one_hot_encoder.transform(categorical_data)
     
     # Concatenate numeric data and one-hot encoded data
     processed_data = np.concatenate([numeric_data, one_hot_encoded], axis=1)
     
+    # Create DataFrame with the concatenated data
+    processed_df = pd.DataFrame(processed_data, columns=[
+        'Age', 'RestingBP', 'Cholesterol', 'FastingBS', 'MaxHR', 'Oldpeak',
+        'Sex_F', 'Sex_M', 'ChestPainType_ASY', 'ChestPainType_ATA', 'ChestPainType_NAP', 'ChestPainType_TA',
+        'RestingECG_LVH', 'RestingECG_Normal', 'RestingECG_ST',
+        'ExerciseAngina_N', 'ExerciseAngina_Y',
+        'ST_Slope_Down', 'ST_Slope_Flat', 'ST_Slope_Up'
+    ])
+    
+    # Ensure columns are in the desired order
+    processed_df = processed_df[desired_feature_order]
+    
     # Standardize numeric features
     scaler = StandardScaler()
-    scaled_data = scaler.fit_transform(processed_data)
+    scaled_data = scaler.fit_transform(processed_df)
+    
     return scaled_data
 
 st.title('Heart Disease Prediction')

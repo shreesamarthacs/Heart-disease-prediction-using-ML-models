@@ -12,54 +12,34 @@ with open('logistic_regression_model.pkl', 'rb') as file:
 with open('Naive_model.pkl', 'rb') as file:
     naive_model = pickle.load(file)
 
-# Load dataset to fit OneHotEncoder
-dataset_raw = pd.read_csv('heart.xls')
-categorical_features = ['Sex', 'ChestPainType', 'RestingECG', 'ExerciseAngina', 'ST_Slope']
-
-# Initialize OneHotEncoder
-one_hot_encoder = OneHotEncoder(sparse_output=False, handle_unknown='ignore')
-one_hot_encoder.fit(dataset_raw[categorical_features])
-
-# Define the feature list in the desired order
-desired_feature_order = [
-    'Age', 'RestingBP', 'Cholesterol', 'FastingBS', 'MaxHR', 'Oldpeak',
-    'Sex_F', 'Sex_M', 'ChestPainType_ASY', 'ChestPainType_ATA', 'ChestPainType_NAP', 'ChestPainType_TA',
-    'RestingECG_LVH', 'RestingECG_Normal', 'RestingECG_ST',
-    'ExerciseAngina_N', 'ExerciseAngina_Y',
-    'ST_Slope_Down', 'ST_Slope_Flat', 'ST_Slope_Up'
-]
+# Load the fitted encoder and scaler
+with open('one_hot_encoder.pkl', 'rb') as f:
+    encoder = pickle.load(f)
+with open('scaler.pkl', 'rb') as f:
+    scaler = pickle.load(f)
 
 def preprocess_input(input_data):
     # Convert input data to DataFrame
     input_df = pd.DataFrame([input_data], columns=[
         'Age', 'Sex', 'ChestPainType', 'RestingBP', 'Cholesterol', 'FastingBS', 'RestingECG', 'MaxHR', 'ExerciseAngina', 'Oldpeak', 'ST_Slope'
     ])
-    
-    # Separate categorical and numeric data
-    categorical_data = input_df[categorical_features]
-    numeric_data = input_df.drop(columns=categorical_features)
-    
-    # One-hot encode categorical features
-    one_hot_encoded = one_hot_encoder.transform(categorical_data)
-    
-    # Concatenate numeric data and one-hot encoded data
-    processed_data = np.concatenate([numeric_data, one_hot_encoded], axis=1)
-    
-    # Create DataFrame with the concatenated data
-    processed_df = pd.DataFrame(processed_data, columns=[
-        'Age', 'RestingBP', 'Cholesterol', 'FastingBS', 'MaxHR', 'Oldpeak',
-        'Sex_F', 'Sex_M', 'ChestPainType_ASY', 'ChestPainType_ATA', 'ChestPainType_NAP', 'ChestPainType_TA',
-        'RestingECG_LVH', 'RestingECG_Normal', 'RestingECG_ST',
-        'ExerciseAngina_N', 'ExerciseAngina_Y',
-        'ST_Slope_Down', 'ST_Slope_Flat', 'ST_Slope_Up'
-    ])
-    
-    # Ensure columns are in the desired order
-    processed_df = processed_df[desired_feature_order]
-    
+
+    categorical_columns = input_df.select_dtypes(include=['object']).columns.tolist()
+
+    # Apply one-hot encoding to the categorical columns
+    one_hot_encoded = encoder.transform(input_df[categorical_columns])
+    one_hot_df = pd.DataFrame(one_hot_encoded, columns=encoder.get_feature_names_out(categorical_columns))
+
+    # Concatenate the one-hot encoded dataframe with the original dataframe
+    df_skencoded = pd.concat([input_df, one_hot_df], axis=1)
+
+# Drop the original categorical columns
+    df_skencoded = df_skencoded.drop(categorical_columns, axis=1)
+
+    st.dataframe(df_skencoded)
+
     # Standardize numeric features
-    scaler = StandardScaler()
-    scaled_data = scaler.fit_transform(processed_df)
+    scaled_data = scaler.transform(df_skencoded)
     
     return scaled_data
 
@@ -67,7 +47,7 @@ st.title('Heart Disease Prediction')
 
 # User input
 age = st.number_input('Age', min_value=0)
-sex = st.selectbox('Sex', options=['Male', 'Female'])
+sex = st.selectbox('Sex', options=['M', 'F'])
 chest_pain_type = st.selectbox('Chest Pain Type', options=['ATA', 'NAP', 'ASY', 'TA'])
 resting_bp = st.number_input('Resting Blood Pressure', min_value=0)
 cholesterol = st.number_input('Cholesterol', min_value=0)

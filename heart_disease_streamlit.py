@@ -17,7 +17,7 @@ dataset_raw = pd.read_csv('heart.xls')
 categorical_features = ['Sex', 'ChestPainType', 'RestingECG', 'ExerciseAngina', 'ST_Slope']
 
 # Initialize OneHotEncoder
-one_hot_encoder = OneHotEncoder(sparse=False, handle_unknown='ignore')
+one_hot_encoder = OneHotEncoder(sparse_output=False, handle_unknown='ignore')
 one_hot_encoder.fit(dataset_raw[categorical_features])
 
 # Define the feature list
